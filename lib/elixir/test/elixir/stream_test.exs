@@ -1342,6 +1342,53 @@ defmodule StreamTest do
     assert Process.get(:stream_zip_with) == :done
   end
 
+  test "unzip/1 is lazy" do
+    {left, right} = Stream.unzip([{:a, 1}])
+    assert lazy?(left)
+    assert lazy?(right)
+  end
+
+  test "unzip/1 basic" do
+    {left, right} = Stream.unzip([{:a, 1}, {:b, 2}, {:c, 3}])
+    assert Enum.to_list(left) == [:a, :b, :c]
+    assert Enum.to_list(right) == [1, 2, 3]
+  end
+
+  test "unzip/1 enumerates the input independently for each side" do
+    Process.put(:stream_unzip_calls, 0)
+
+    source =
+      Stream.map([{:a, 1}, {:b, 2}], fn tuple ->
+        Process.put(:stream_unzip_calls, Process.get(:stream_unzip_calls) + 1)
+        tuple
+      end)
+
+    {left, right} = Stream.unzip(source)
+    assert Enum.to_list(left) == [:a, :b]
+    assert Enum.to_list(right) == [1, 2]
+    assert Process.get(:stream_unzip_calls) == 4
+  end
+
+  test "unzip/1 roundtrips with zip/2" do
+    concat = Stream.concat(1..3, 4..6)
+    cycle = Stream.cycle([:a, :b, :c])
+    zipped = Stream.zip(concat, cycle)
+
+    {left, right} = Stream.unzip(zipped)
+    assert Enum.to_list(Stream.zip(left, right)) == Enum.to_list(zipped)
+  end
+
+  test "unzip/1 raises on non-tuple elements at enumeration time" do
+    {left, _right} = Stream.unzip([:a, :b, :c])
+    assert_raise FunctionClauseError, fn -> Enum.to_list(left) end
+  end
+
+  test "unzip/1 on empty input" do
+    {left, right} = Stream.unzip([])
+    assert Enum.to_list(left) == []
+    assert Enum.to_list(right) == []
+  end
+
   test "zip_with/2 closes on inner error" do
     zip_with_fun = &List.to_tuple/1
     stream = Stream.into([1, 2, 3], %Pdict{})

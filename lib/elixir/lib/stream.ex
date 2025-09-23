@@ -1383,6 +1383,38 @@ defmodule Stream do
     R.zip_with(enumerables, zip_fun)
   end
 
+  @doc """
+  Opposite of `zip/2`. Lazily splits a stream of two-element tuples into two streams.
+
+  It returns a tuple with two streams. Each stream enumerates the corresponding
+  element of the input tuples.
+
+  Each returned stream enumerates the input independently. Enumerating both
+  streams will traverse the input twice. If your input is a resource or costs
+  to enumerate, consider materializing once with `Enum.unzip/1`.
+
+  This function expects elements to be two-element tuples. Otherwise, it will
+  fail at enumeration time.
+
+  ## Examples
+
+      iex> {left, right} = Stream.unzip([{:a, 1}, {:b, 2}, {:c, 3}])
+      iex> Enum.to_list(left)
+      [:a, :b, :c]
+      iex> Enum.to_list(right)
+      [1, 2, 3]
+
+  """
+  @doc since: "1.19.0"
+  @spec unzip(Enumerable.t({left, right})) :: {Enumerable.t(left), Enumerable.t(right)}
+        when left: term, right: term
+  def unzip(enumerable) do
+    {
+      map(enumerable, fn {left, _right} -> left end),
+      map(enumerable, fn {_left, right} -> right end)
+    }
+  end
+
   ## Sources
 
   @doc """
